@@ -35,6 +35,10 @@ help() {
   # 18 days ago
   echo "\tdatef -f %Y-%m-%d 2023-01-01 -f %Y/%m/%d 2022/12/14"
   echo "\t18 days ago"
+  echo
+  # 6 days ago
+  echo "\tdatef.sh -f %Y-%m-%d 2023-07-01 2023-01-01"
+  echo "\t6 days ago"
   exit 2
 }
 
@@ -80,23 +84,26 @@ if [ $dates_length -eq 0 ]; then
   err "date input was not provided"
 elif [ $dates_length -gt 2 ]; then
   err "too many input input dates given, got $dates_length, expected maximum of 2"
-elif [ $dates_length -ne "${#formats[@]}" ]; then
-  err "too many formats given, got ${#formats[@]}, expected $dates_length"
+elif [ $dates_length -lt "${#formats[@]}" ]; then
+  err "too many formats given, got ${#formats[@]}, expected between maximum of $dates_length"
 fi
+
+format_a="${formats[0]}"
+format_b="${formats[1]:-${formats[0]}}"
 
 # TODO: check if provided_date is not a number
 # this usually means that we have extraneous characters in the input date
 # set the seconds to the provided_date variable instead
 # if this is not done the diff comparison will fail since we cannot make
 # arithmetic operations between string and number
-if ! date_a=$(date -j -f "${formats[0]}" "${dates[0]}" +%s 2>&1); then
+if ! date_a=$(date -j -f "${format_a}" "${dates[0]}" +%s 2>&1); then
   err "$(echo "$date_a" | awk 'NR==1{ print }')"
   exit 1
 fi
 
 # Calculate date diffs
 if [ $dates_length -gt 1 ]; then
-  if ! date_b=$(date -j -f "${formats[1]}" "${dates[1]}" +%s 2>&1); then
+  if ! date_b=$(date -j -f "${format_b}" "${dates[1]}" +%s 2>&1); then
     err "$(echo "$date_b" | awk 'NR==1{ print }')"
     exit 1
   fi
@@ -105,31 +112,31 @@ else
   diff=$((($(date +%s)-$date_a)))
 fi
 
-t="ago"
+time="ago"
 
 if [ $diff -eq 0 ]; then
   echo "Current date"
   exit 0
 elif [ $diff -lt 0 ]; then
   diff=$((${diff:1}))
-  t="in future"
+  time="in future"
 fi
 
 day_threshold=86400
 hour_threshold=3600
 minute_threshold=60
 threshold=1
-time="second"
+unit="second"
 
 if [ $diff -gt $(($day_threshold-1)) ]; then
   threshold=$day_threshold
-  time="day"
+  unit="day"
 elif [ $diff -gt $(($hour_threshold-1)) ]; then
   threshold=$hour_threshold
-  time="hour"
+  unit="hour"
 elif [ $diff -gt $(($minute_threshold-1)) ]; then
   threshold=$minute_threshold
-  time="minute"
+  unit="minute"
 fi
 
 diff=$(($diff / $threshold))
@@ -138,4 +145,4 @@ if [ $diff -gt 1 ]; then
   pluralised="s"
 fi
 
-printf "%d %s%c %s\n" "$diff" "$time" "$pluralised" "$t"
+printf "%d %s%c %s\n" "$diff" "$unit" "$pluralised" "$time"
