@@ -27,14 +27,14 @@ help() {
   echo "\t3 days ago"
   echo
   # 15 minutes in future
-  echo "\tdatef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T13:30:00Z"
+  echo "\tdatef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T12:15:00Z"
   echo "\t15 minutes in future"
   echo
   # Two dates
   echo "\tWhen two dates are given the first one is the one compared to"
   echo
   # 18 days ago
-  echo "\tdatef -f %Y-%m-%d 2023-01-01 2022-12-14"
+  echo "\tdatef -f %Y-%m-%d 2024-01-01 2022-12-14"
   echo "\t18 days ago"
   echo
   exit 2

@@ -12,7 +12,6 @@ to otherwise `datef` will use the current system time as the comparison date.
 
 ```
 -f --format <input_format> Takes date compliant format e.g. "%Y-%m-%d"
--s --silent                Error messages are not displayed only output
 -h --help                  Show help
 ```
 
@@ -31,14 +30,14 @@ datef -f %Y-%m-%d 2023-01-04
 ```
 
 ```sh
-datef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T13:30:00Z
+datef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T12:15:00Z
 15 minutes in future
 ````
 
 When two dates are given
 
 ```sh
-datef -f %Y-%m-%d 2023-01-01 -f %Y/%m/%d 2022/12/14
+datef -f %Y-%m-%d 2023-01-01 2022-12-14
 18 days ago
 ```
 
