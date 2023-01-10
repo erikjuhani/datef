@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+set -e
+
 shopt -s extglob
 
 help() {
@@ -7,11 +9,10 @@ help() {
   echo "Compare dates and output in human readable format e.g. \`2 days ago\`"
   echo
   echo "USAGE" 
-  echo "\tdatef [-f <input_format> <input_date>] [-s] [-h]"
+  echo "\tdatef [-f <input_format>] [<input_date>] [-h]"
   echo
   echo "OPTIONS"
   echo "\t-f --format <input_format>\tTakes date compliant format e.g. \"%Y-%m-%d\"\t"
-  echo "\t-s --silent\t\t\tError messages are not displayed only output"
   echo "\t-h --help\t\t\tShow help"
   echo
   echo "EXAMPLES"
@@ -33,21 +34,14 @@ help() {
   echo "\tWhen two dates are given the first one is the one compared to"
   echo
   # 18 days ago
-  echo "\tdatef -f %Y-%m-%d 2023-01-01 -f %Y/%m/%d 2022/12/14"
+  echo "\tdatef -f %Y-%m-%d 2023-01-01 2022-12-14"
   echo "\t18 days ago"
   echo
-  # 6 days ago
-  echo "\tdatef.sh -f %Y-%m-%d 2023-07-01 2023-01-01"
-  echo "\t6 days ago"
   exit 2
 }
 
-SILENT=0
-
 err() {
-  if [ $SILENT == 0 ]; then
-    printf "error: %s\n" "$@"
-  fi
+  >&2 printf "error: %s\n" "$@"
   exit 1
 }
 
@@ -56,16 +50,13 @@ if [ $# -eq 0 ]; then
 fi
 
 dates=()
-formats=()
-
 while [ $# -gt 0 ]; do
   case "$1" in
-    -s|--silent)
-      SILENT=1
-      shift
-    ;;
     -f|--format)
-      formats+=("$2")
+      if [ ! -z $format ]; then
+        err "Format $format was already provided, got more than one format, expected one format"
+      fi
+      format="$2"
       shift
     ;;
     !(-*))
@@ -81,32 +72,23 @@ done
 dates_length="${#dates[@]}"
 
 if [ $dates_length -eq 0 ]; then
-  err "date input was not provided"
+  err "Date input was not provided"
 elif [ $dates_length -gt 2 ]; then
-  err "too many input input dates given, got $dates_length, expected maximum of 2"
-elif [ $dates_length -lt "${#formats[@]}" ]; then
-  err "too many formats given, got ${#formats[@]}, expected between maximum of $dates_length"
+  err "Too many input input dates given, got $dates_length, expected maximum of 2"
 fi
 
-format_a="${formats[0]}"
-format_b="${formats[1]:-${formats[0]}}"
+format_date() {
+  if ! date=$(date -j -f "${format}" "$1" +%s 2>&1); then
+    err "$(echo "$date" | awk 'NR==1{ print }')"
+  fi
+  echo $(echo "$date" | grep -E '\d+$')
+}
 
-# TODO: check if provided_date is not a number
-# this usually means that we have extraneous characters in the input date
-# set the seconds to the provided_date variable instead
-# if this is not done the diff comparison will fail since we cannot make
-# arithmetic operations between string and number
-if ! date_a=$(date -j -f "${format_a}" "${dates[0]}" +%s 2>&1); then
-  err "$(echo "$date_a" | awk 'NR==1{ print }')"
-  exit 1
-fi
+date_a=$(format_date "${dates[0]}")
 
 # Calculate date diffs
 if [ $dates_length -gt 1 ]; then
-  if ! date_b=$(date -j -f "${format_b}" "${dates[1]}" +%s 2>&1); then
-    err "$(echo "$date_b" | awk 'NR==1{ print }')"
-    exit 1
-  fi
+  date_b=$(format_date $date_b "${dates[1]}")
   diff=$((($date_a-$date_b)))
 else
   diff=$((($(date +%s)-$date_a)))
