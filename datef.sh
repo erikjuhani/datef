@@ -2,46 +2,43 @@
 
 set -e
 
-shopt -s extglob
-
 help() {
-  echo "datef"
-  echo "Compare dates and output in human readable format e.g. \`2 days ago\`"
-  echo
-  echo "USAGE" 
-  echo "\tdatef [-f <input_format>] [<input_date>] [-h]"
-  echo
-  echo "OPTIONS"
-  echo "\t-f --format <input_format>\tTakes date compliant format e.g. \"%Y-%m-%d\"\t"
-  echo "\t-h --help\t\t\tShow help"
-  echo
-  echo "EXAMPLES"
-  echo "\tWhen current date is set to \"Sat Jan  7 12:00:00 UTC 2023\""
-  echo
-  # 1 hour ago
-  echo "\tdatef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T11:00:00Z"
-  echo "\t1 hour ago"
-  echo
-  # 3 days ago
-  echo "\tdatef -f %Y-%m-%d 2023-01-04"
-  echo "\t3 days ago"
-  echo
-  # 15 minutes in future
-  echo "\tdatef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T12:15:00Z"
-  echo "\t15 minutes in future"
-  echo
-  # Two dates
-  echo "\tWhen two dates are given the first one is the one compared to"
-  echo
-  # 18 days ago
-  echo "\tdatef -f %Y-%m-%d 2024-01-01 2022-12-14"
-  echo "\t18 days ago"
-  echo
+  print "datef"
+  print "Compare dates and output in human readable format e.g. \`2 days ago\`"
+  print
+  print "USAGE"
+  print "\tdatef [-f <input_format>] [<input_date>] [-h]"
+  print
+  print "OPTIONS"
+  print "\t-f --format <input_format>\tTakes date compliant format e.g. \"%Y-%m-%d\""
+  print "\t-h --help\t\t\tShow help"
+  print
+  print "EXAMPLES"
+  print "\tWhen current date is set to \"Sat Jan  7 12:00:00 UTC 2023\""
+  print
+  print "\tdatef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T11:00:00Z"
+  print "\t1 hour ago"
+  print
+  print "\tdatef -f %Y-%m-%d 2023-01-04"
+  print "\t3 days ago"
+  print
+  print "\tdatef -f %Y-%m-%dT%H:%M:%SZ 2023-01-07T12:15:00Z"
+  print "\t15 minutes in future"
+  print
+  print "\tWhen two dates are given the first one is the one compared to"
+  print
+  print "\tdatef -f %Y-%m-%d 2022-12-14 2023-01-01 "
+  print "\t18 days ago"
+  print
   exit 2
 }
 
+print() {
+  printf "%b\n" "$@"
+}
+
 err() {
-  >&2 printf "error: %s\n" "$@"
+  printf >&2 "error: %s\n" "$@"
   exit 1
 }
 
@@ -49,82 +46,71 @@ if [ $# -eq 0 ]; then
   help
 fi
 
-dates=()
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -f|--format)
-      if [ ! -z $format ]; then
-        err "Format $format was already provided, got more than one format, expected one format"
-      fi
-      format="$2"
-      shift
-    ;;
-    !(-*))
-      dates+=("$1")
-    ;;
-    -h|--help)
-      help
-    ;;
-  esac
-  shift
-done
-
-dates_length="${#dates[@]}"
-
-if [ $dates_length -eq 0 ]; then
-  err "Date input was not provided"
-elif [ $dates_length -gt 2 ]; then
-  err "Too many input input dates given, got $dates_length, expected maximum of 2"
-fi
-
 format_date() {
-  if ! date=$(date -j -f "${format}" "$1" +%s 2>&1); then
-    err "$(echo "$date" | awk 'NR==1{ print }')"
+  if ! date=$(date -j -f "$1" "$2" +%s 2>&1); then
+    err "$(printf "%s" "${date}" | awk 'NR==1{ print }')"
   fi
-  echo $(echo "$date" | grep -E '\d+$')
+  printf "%s" "$(printf "%s" "${date}" | grep -E '\d+$')"
 }
 
-date_a=$(format_date "${dates[0]}")
+datef() {
+  # parse flags and date input arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    -f | --format)
+      [ -n "${date_format}" ] && err "Format ${date_format} was already provided, got more than one format, expected one format"
+      date_format="$2"
+      shift
+      ;;
+    -h | --help) help ;;
+    -*)
+      printf "Flag %s provided but not defined\n\n" "$1"
+      help
+      ;;
+    *)
+      [ "$#" -gt 2 ] && err "Too many input dates given, got $# expected maximum of 2"
+      [ -z "${date_a}" ] && date_a="$(format_date "${date_format}" "$1")"
+      [ -z "${date_b}" ] && [ -n "$2" ] && date_b="$(format_date "${date_format}" "$2")"
+      ;;
+    esac
+    shift
+  done
 
-# Calculate date diffs
-if [ $dates_length -gt 1 ]; then
-  date_b=$(format_date $date_b "${dates[1]}")
-  diff=$((($date_a-$date_b)))
-else
-  diff=$((($(date +%s)-$date_a)))
-fi
+  # validate that at least 1 input date was given
+  [ -z "${date_a}" ] && err "Date input was not provided"
 
-time="ago"
+  date_b="${date_b:-$(date +%s)}"
+  diff="$((date_b - date_a))"
 
-if [ $diff -eq 0 ]; then
-  echo "Current date"
-  exit 0
-elif [ $diff -lt 0 ]; then
-  diff=$((${diff:1}))
-  time="in future"
-fi
+  [ "${diff}" -eq 0 ] && print "Current date" && exit
 
-day_threshold=86400
-hour_threshold=3600
-minute_threshold=60
-threshold=1
-unit="second"
+  if [ "${diff}" -lt 0 ]; then
+    diff="$(printf '%s' "${diff}" | cut -c 2-)"
+    readonly time="in future"
+  else
+    readonly time="ago"
+  fi
 
-if [ $diff -gt $(($day_threshold-1)) ]; then
-  threshold=$day_threshold
-  unit="day"
-elif [ $diff -gt $(($hour_threshold-1)) ]; then
-  threshold=$hour_threshold
-  unit="hour"
-elif [ $diff -gt $(($minute_threshold-1)) ]; then
-  threshold=$minute_threshold
-  unit="minute"
-fi
+  readonly day_threshold=86400
+  readonly hour_threshold=3600
+  readonly minute_threshold=60
 
-diff=$(($diff / $threshold))
+  if [ "${diff}" -gt "$((day_threshold - 1))" ]; then
+    readonly threshold="${day_threshold}"
+    readonly unit="day"
+  elif [ "${diff}" -gt "$((hour_threshold - 1))" ]; then
+    readonly threshold="${hour_threshold}"
+    readonly unit="hour"
+  elif [ "${diff}" -gt "$((minute_threshold - 1))" ]; then
+    readonly threshold="${minute_threshold}"
+    readonly unit="minute"
+  fi
 
-if [ $diff -gt 1 ]; then
-  pluralised="s"
-fi
+  diff="$((diff / ${threshold:-1}))"
 
-printf "%d %s%c %s\n" "$diff" "$unit" "$pluralised" "$time"
+  [ "$diff" -gt 1 ] && readonly pluralised="s"
+
+  printf "%d %s%c %s\n" "${diff}" "${unit-second}" "${pluralised}" "${time}"
+}
+
+datef "$@"
