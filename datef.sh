@@ -47,7 +47,12 @@ if [ $# -eq 0 ]; then
 fi
 
 format_date() {
-  if ! date=$(date -j -f "$1" "$2" +%s 2>&1); then
+  case "$(uname -s)" in
+    "Darwin") set -- -j -f "$1" "$2" ;;
+    "Linux") set -- -D "$1" -d "$2" ;;
+  esac
+
+  if ! date=$(date "$@" +%s 2>&1); then
     err "$(printf "%s" "${date}" | awk 'NR==1{ print }')"
   fi
   printf "%s" "$(printf "%s" "${date}" | grep -E '\d+$')"
